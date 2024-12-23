@@ -181,6 +181,163 @@ function loadTransactions() {
     });
 }
 
+
+// Checkout: Proses transaksi
+document.getElementById('checkoutBtn').addEventListener('click', function () {
+    if (cart.length === 0) {
+        alert('Keranjang kosong. Silakan tambahkan produk terlebih dahulu.');
+        return;
+    }
+
+    const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const paymentMethod = prompt('Pilih metode pembayaran (Cash, Debit, Credit):', 'Cash');
+
+    if (!paymentMethod || !['cash', 'debit', 'credit'].includes(paymentMethod.toLowerCase())) {
+        alert('Metode pembayaran tidak valid. Masukkan "Cash", "Debit", atau "Credit".');
+        return;
+    }
+
+    // Konfirmasi jumlah pembayaran
+    const paymentAmount = parseFloat(prompt(`Total transaksi: Rp ${totalAmount.toFixed(2)}\nMasukkan jumlah pembayaran:`));
+    if (isNaN(paymentAmount) || paymentAmount < totalAmount) {
+        alert('Jumlah pembayaran tidak cukup.');
+        return;
+    }
+
+    // Mengurangi stok produk
+    cart.forEach(cartItem => {
+        const productIndex = products.findIndex(p => p.id === cartItem.id);
+        if (productIndex !== -1) {
+            products[productIndex].stock -= cartItem.quantity;
+        }
+    });
+
+    // Menyimpan transaksi
+    const transaction = {
+        id: Date.now(),
+        date: new Date().toLocaleString(),
+        items: cart,
+        totalAmount: totalAmount,
+        paymentAmount: paymentAmount,
+        paymentMethod: paymentMethod.toLowerCase(),
+        change: paymentAmount - totalAmount,
+    };
+
+    transactions.push(transaction);
+    saveTransactions(transactions);
+
+    // Reset keranjang
+    cart = [];
+    saveCart(cart);
+    loadCart();
+    loadProducts();
+
+    alert(`Transaksi berhasil! Kembalian: Rp ${transaction.change.toFixed(2)}`);
+    loadTransactions();
+});
+
+// Load Transactions: Tampilkan riwayat transaksi
+function loadTransactions() {
+    const tbody = document.getElementById('transactionTable');
+    tbody.innerHTML = '';
+
+    transactions.forEach(transaction => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${transaction.id}</td>
+                <td>${transaction.date}</td>
+                <td>${transaction.paymentMethod.toUpperCase()}</td>
+                <td>Rp ${transaction.totalAmount.toFixed(2)}</td>
+                <td>Rp ${transaction.paymentAmount.toFixed(2)}</td>
+                <td>Rp ${transaction.change.toFixed(2)}</td>
+                <td><button class="btn btn-info btn-sm" onclick="viewTransactionDetails(${transaction.id})">Detail</button></td>
+            </tr>
+        `;
+    });
+}
+
+// View Transaction Details: Menampilkan detail transaksi
+function viewTransactionDetails(transactionId) {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) {
+        alert('Transaksi tidak ditemukan.');
+        return;
+    }
+
+    let details = `ID Transaksi: ${transaction.id}\nTanggal: ${transaction.date}\nMetode Pembayaran: ${transaction.paymentMethod.toUpperCase()}\n\nRincian Produk:\n`;
+    transaction.items.forEach(item => {
+        details += `- ${item.name}: ${item.quantity} x Rp ${item.price.toFixed(2)} = Rp ${(item.price * item.quantity).toFixed(2)}\n`;
+    });
+    details += `\nTotal: Rp ${transaction.totalAmount.toFixed(2)}\nDibayar: Rp ${transaction.paymentAmount.toFixed(2)}\nKembalian: Rp ${transaction.change.toFixed(2)}`;
+
+    alert(details);
+}
+
+// Add to Cart: Tambahkan produk ke keranjang
+function addToCart(productIndex) {
+    const product = products[productIndex];
+    if (product.stock <= 0) {
+        alert(`Stok untuk produk "${product.name}" habis.`);
+        return;
+    }
+
+    const existingItem = cart.find(item => item.id === product.id);
+    if (existingItem) {
+        if (product.stock > existingItem.quantity) {
+            existingItem.quantity++;
+        } else {
+            alert(`Stok untuk produk "${product.name}" tidak mencukupi.`);
+        }
+    } else {
+        cart.push({ id: product.id, name: product.name, price: product.price, quantity: 1 });
+    }
+
+    saveCart(cart);
+    loadCart();
+}
+
+
+
+// Backup Transaksi
+document.getElementById('backupBtn').addEventListener('click', function () {
+    const data = { products, transactions };
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'pos_backup.json';
+    link.click();
+});
+
+// Restore Transaksi
+document.getElementById('restoreBtn').addEventListener('click', function () {
+    const fileInput = document.getElementById('restoreInput');
+    if (fileInput.files.length === 0) {
+        alert('Pilih file backup terlebih dahulu.');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            products = data.products || [];
+            transactions = data.transactions || [];
+            saveProducts(products);
+            saveTransactions(transactions);
+            loadProducts();
+            loadTransactions();
+            alert('Data berhasil di-restore.');
+        } catch (error) {
+            alert('Gagal me-restore data. File tidak valid.');
+        }
+    };
+    reader.readAsText(file);
+});
+
+
+
+
 // Backup and Restore
 document.getElementById('backupBtn').addEventListener('click', function () {
     const data = { products, transactions };
