@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Produk</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+</head>
+<body>
+
+<div class="container mt-5">
+    <h2 class="mb-4">Manajemen Produk</h2>
+
+    <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#productModal">Tambah Produk</button>
+    
+    <div class="form-group mb-3">
+        <input type="text" id="searchInput" class="form-control" placeholder="Cari produk...">
+        <button id="exportCsvBtn" class="btn btn-success mt-2">Export CSV</button>
+    </div>
+
+    <table class="table table-bordered" id="productTable">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th data-column="name" data-order="asc">Nama Produk</th>
+                <th data-column="price" data-order="asc">Harga</th>
+                <th>Deskripsi</th>
+                <th data-column="category" data-order="asc">Kategori</th>
+                <th data-column="status" data-order="asc">Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <nav aria-label="Page navigation">
+        <ul class="pagination" id="pagination"></ul>
+    </nav>
+</div>
+
+<!-- Modal Tambah/Edit Produk -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productModalLabel">Tambah Produk</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <div class="mb-3">
+                        <label for="productName" class="form-label">Nama Produk</label>
+                        <input type="text" class="form-control" id="productName" placeholder="Masukkan nama produk">
+                        <div id="nameError" class="text-danger"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productPrice" class="form-label">Harga Produk</label>
+                        <input type="number" class="form-control" id="productPrice" placeholder="Masukkan harga produk">
+                        <div id="priceError" class="text-danger"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productDescription" class="form-label">Deskripsi Produk</label>
+                        <textarea class="form-control" id="productDescription" placeholder="Masukkan deskripsi produk"></textarea>
+                        <div id="descriptionError" class="text-danger"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productCategory" class="form-label">Kategori</label>
+                        <select class="form-select" id="productCategory">
+                            <option value="">Pilih kategori</option>
+                            <option value="Elektronik">Elektronik</option>
+                            <option value="Furniture">Furniture</option>
+                            <option value="Grocery">Grocery</option>
+                        </select>
+                        <div id="categoryError" class="text-danger"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="productStatus" class="form-label">Status</label>
+                        <select class="form-select" id="productStatus">
+                            <option value="">Pilih status</option>
+                            <option value="aktif">Aktif</option>
+                            <option value="tidak aktif">Tidak Aktif</option>
+                        </select>
+                        <div id="statusError" class="text-danger"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Produk Modal -->
+<div class="modal fade" id="detailProductModal" tabindex="-1" aria-labelledby="detailProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailProductModalLabel">Detail Produk</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="detailProductBody">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let userRole = 'admin'; // Role bisa diambil dari autentikasi pengguna
+    let products = JSON.parse(localStorage.getItem('products')) || [];
+    let currentPage = 1;
+    let itemsPerPage = 5;
+    let editingIndex = null;
+
+    $(document).ready(function () {
+        renderProductTable();
+
+        // Add Product Form Submit
+        $('#productForm').on('submit', function (e) {
+            e.preventDefault();
+
+            let productName = $('#productName').val().trim();
+            let productPrice = parseFloat($('#productPrice').val());
+            let productDescription = $('#productDescription').val().trim();
+            let productCategory = $('#productCategory').val();
+            let productStatus = $('#productStatus').val();
+            let valid = true;
+
+            // Form validation
+            if (!productName) {
+                $('#nameError').text('Nama produk wajib diisi.');
+                valid = false;
+            } else {
+                $('#nameError').text('');
+            }
+
+            if (isNaN(productPrice) || productPrice <= 0) {
+                $('#priceError').text('Harga harus lebih dari 0.');
+                valid = false;
+            } else {
+                $('#priceError').text('');
+            }
+
+            if (!productDescription) {
+                $('#descriptionError').text('Deskripsi produk wajib diisi.');
+                valid = false;
+            } else {
+                $('#descriptionError').text('');
+            }
+
+            if (!productCategory) {
+                $('#categoryError').text('Kategori produk wajib dipilih.');
+                valid = false;
+            } else {
+                $('#categoryError').text('');
+            }
+
+            if (!productStatus) {
+                $('#statusError').text('Status produk wajib dipilih.');
+                valid = false;
+            } else {
+                $('#statusError').text('');
+            }
+
+            if (!valid) return;
+
+            if (editingIndex !== null) {
+                products[editingIndex] = { 
+                    name: productName, 
+                    price: productPrice, 
+                    description: productDescription, 
+                    category: productCategory, 
+                    status: productStatus 
+                };
+                toastr.success('Produk berhasil diperbarui!');
+            } else {
+                products.push({ 
+                    name: productName, 
+                    price: productPrice, 
+                    description: productDescription, 
+                    category: productCategory, 
+                    status: productStatus 
+                });
+                toastr.success('Produk berhasil ditambahkan!');
+            }
+
+            localStorage.setItem('products', JSON.stringify(products));
+            renderProductTable();
+            $('#productModal').modal('hide');
+        });
+
+        // View Product Details
+        $(document).on('click', '.viewBtn', function () {
+            const index = $(this).data('index');
+            const product = products[index];
+            $('#detailProductModal .modal-body').html(`
+                <p><strong>Nama:</strong> ${product.name}</p>
+                <p><strong>Harga:</strong> ${product.price}</p>
+                <p><strong>Deskripsi:</strong> ${product.description}</p>
+                <p><strong>Kategori:</strong> ${product.category}</p>
+                <p><strong>Status:</strong> ${product.status}</p>
+            `);
+            $('#detailProductModal').modal('show');
+        });
+
+        // Edit Product
+        $(document).on('click', '.editBtn', function () {
+            editingIndex = $(this).data('index');
+            const product = products[editingIndex];
+            $('#productName').val(product.name);
+            $('#productPrice').val(product.price);
+            $('#productDescription').val(product.description);
+            $('#productCategory').val(product.category);
+            $('#productStatus').val(product.status);
+            $('#productModalLabel').text('Edit Produk');
+            $('#productModal').modal('show');
+        });
+
+        // Delete Product
+        $(document).on('click', '.deleteBtn', function () {
+            const index = $(this).data('index');
+            products.splice(index, 1);
+            localStorage.setItem('products', JSON.stringify(products));
+            renderProductTable();
+            toastr.success('Produk berhasil dihapus!');
+        });
+
+        // Bulk Delete
+        $('#bulkDeleteBtn').on('click', function () {
+            const selectedIndexes = $('#productTable input:checked').map(function () {
+                return $(this).data('index');
+            }).get();
+
+            if (selectedIndexes.length > 0) {
+                selectedIndexes.forEach(index => {
+                    products.splice(index, 1);
+                });
+                localStorage.setItem('products', JSON.stringify(products));
+                renderProductTable();
+                toastr.success('Produk berhasil dihapus!');
+            } else {
+                toastr.warning('Pilih produk terlebih dahulu!');
+            }
+        });
+
+        // Select All Checkbox
+        $('#selectAll').on('click', function () {
+            const isChecked = $(this).prop('checked');
+            $('#productTable input[type="checkbox"]').prop('checked', isChecked);
+        });
+
+        // Search Products
+        $('#searchInput').on('keyup', function () {
+            renderProductTable();
+        });
+
+        // Export to CSV
+        $('#exportCsvBtn').on('click', function () {
+            let csv = 'Nama, Harga, Deskripsi, Kategori, Status\n';
+            products.forEach(product => {
+                csv += `${product.name}, ${product.price}, ${product.description}, ${product.category}, ${product.status}\n`;
+            });
+            let blob = new Blob([csv], { type: 'text/csv' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'products.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Pagination
+        function paginateProducts(products, page, limit) {
+            const startIndex = (page - 1) * limit;
+            const endIndex = startIndex + limit;
+            return products.slice(startIndex, endIndex);
+        }
+
+        function renderPagination(products) {
+            const totalPages = Math.ceil(products.length / itemsPerPage);
+            $('#pagination').empty();
+
+            for (let i = 1; i <= totalPages; i++) {
+                $('#pagination').append(`<li class="page-item"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`);
+            }
+        }
+
+        $(document).on('click', '.page-link', function (e) {
+            e.preventDefault();
+            currentPage = parseInt($(this).data('page'));
+            renderProductTable();
+        });
+
+        // Render Product Table
+        function renderProductTable() {
+            const filteredProducts = products.filter(product => 
+                product.name.toLowerCase().includes($('#searchInput').val().toLowerCase())
+            );
+            const paginatedProducts = paginateProducts(filteredProducts, currentPage, itemsPerPage);
+
+            $('#productTable tbody').empty();
+
+            paginatedProducts.forEach((product, index) => {
+                $('#productTable tbody').append(`
+                    <tr>
+                        <td><input type="checkbox" data-index="${index}"></td>
+                        <td>${product.name}</td>
+                        <td>${product.price}</td>
+                        <td>${product.description}</td>
+                        <td>${product.category}</td>
+                        <td>${product.status === 'aktif' ? 'Aktif' : 'Tidak Aktif'}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm viewBtn" data-index="${index}">Lihat</button>
+                            <button class="btn btn-warning btn-sm editBtn" data-index="${index}">Edit</button>
+                            <button class="btn btn-danger btn-sm deleteBtn" data-index="${index}">Hapus</button>
+                        </td>
+                    </tr>
+                `);
+            });
+
+            renderPagination(filteredProducts);
+        }
+
+        renderProductTable();
+    });
+</script>
+
+</body>
+</html>
