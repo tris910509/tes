@@ -1,13 +1,11 @@
 body {
     font-family: Arial, sans-serif;
-    background-color: #f8f9fa;
 }
 
-.nav-link.active {
-    background-color: #007bff;
-    color: white;
+.navbar {
+    margin-bottom: 20px;
 }
 
 .container {
-    max-width: 800px;
+    padding: 20px;
 }
