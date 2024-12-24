@@ -1,28 +1,99 @@
-// Data Storage Keys
+const STORAGE_KEY_USERS = 'pos-users';
 const STORAGE_KEY_PRODUCTS = 'pos-products';
 const STORAGE_KEY_TRANSACTIONS = 'pos-transactions';
-const STORAGE_KEY_USERS = 'pos-users';
 
-// Example Product, Transaction, and User Data
+// Load data from localStorage
+let users = JSON.parse(localStorage.getItem(STORAGE_KEY_USERS)) || [];
 let products = JSON.parse(localStorage.getItem(STORAGE_KEY_PRODUCTS)) || [];
 let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY_TRANSACTIONS)) || [];
-let users = JSON.parse(localStorage.getItem(STORAGE_KEY_USERS)) || [];
 
-// Elements
-const content = document.getElementById('content');
-
-// Initialize the app
+// Initialize App
 function init() {
     loadProducts();
     loadTransactions();
     loadReports();
+    loadUsers();
 
     document.getElementById('nav-products').addEventListener('click', loadProducts);
     document.getElementById('nav-transactions').addEventListener('click', loadTransactions);
     document.getElementById('nav-reports').addEventListener('click', loadReports);
+    document.getElementById('nav-users').addEventListener('click', loadUsers);
 
-    // Load User Management
-    loadUsers();
+    // Other event listeners...
+}
+
+// Load Users Section
+function loadUsers() {
+    content.innerHTML = `
+        <h3>Manage Users</h3>
+        <form id="user-form">
+            <div class="form-group">
+                <label for="user-name">Name</label>
+                <input type="text" id="user-name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="user-email">Email</label>
+                <input type="email" id="user-email" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="user-password">Password</label>
+                <input type="password" id="user-password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="user-role">Role</label>
+                <select id="user-role" class="form-control">
+                    <option value="admin">Admin</option>
+                    <option value="user">User</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Add User</button>
+        </form>
+        <h4>User List</h4>
+        <ul id="user-list" class="list-group mt-3"></ul>
+    `;
+
+    displayUsers();
+
+    document.getElementById('user-form').addEventListener('submit', addUser);
+}
+
+// Display Users
+function displayUsers() {
+    const userList = document.getElementById('user-list');
+    userList.innerHTML = '';
+
+    users.forEach((user, index) => {
+        userList.innerHTML += `
+            <li class="list-group-item">
+                ${user.name} - ${user.email} - Role: ${user.role}
+                <button class="btn btn-danger btn-sm float-right" onclick="deleteUser(${index})">Delete</button>
+            </li>
+        `;
+    });
+}
+
+// Add User
+function addUser(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('user-name').value;
+    const email = document.getElementById('user-email').value;
+    const password = document.getElementById('user-password').value;
+    const role = document.getElementById('user-role').value;
+
+    const newUser = { id: Date.now(), name, email, password, role };
+    users.push(newUser);
+    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+
+    displayUsers();
+    e.target.reset();
+}
+
+// Delete User
+function deleteUser(index) {
+    users.splice(index, 1);
+    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+    displayUsers();
 }
 
 // Load Products Section
@@ -31,12 +102,8 @@ function loadProducts() {
         <h3>Manage Products</h3>
         <form id="product-form">
             <div class="form-group">
-                <label for="product-name">Name</label>
+                <label for="product-name">Product Name</label>
                 <input type="text" id="product-name" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="product-category">Category</label>
-                <input type="text" id="product-category" class="form-control" required>
             </div>
             <div class="form-group">
                 <label for="product-price">Price</label>
@@ -61,7 +128,7 @@ function displayProducts() {
     products.forEach((product, index) => {
         productList.innerHTML += `
             <li class="list-group-item">
-                ${product.name} - ${product.category} - $${product.price}
+                ${product.name} - $${product.price.toFixed(2)}
                 <button class="btn btn-danger btn-sm float-right" onclick="deleteProduct(${index})">Delete</button>
             </li>
         `;
@@ -73,10 +140,9 @@ function addProduct(e) {
     e.preventDefault();
 
     const name = document.getElementById('product-name').value;
-    const category = document.getElementById('product-category').value;
-    const price = document.getElementById('product-price').value;
+    const price = parseFloat(document.getElementById('product-price').value);
 
-    const newProduct = { name, category, price: parseFloat(price) };
+    const newProduct = { id: Date.now(), name, price };
     products.push(newProduct);
     localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
 
@@ -100,7 +166,7 @@ function loadTransactions() {
                 <label for="transaction-product">Product</label>
                 <select id="transaction-product" class="form-control" required>
                     <option value="" disabled selected>Select Product</option>
-                    ${products.map((product, index) => `<option value="${index}">${product.name}</option>`).join('')}
+                    ${products.map((product, index) => `<option value="${index}">${product.name} - $${product.price}</option>`).join('')}
                 </select>
             </div>
             <div class="form-group">
@@ -139,10 +205,9 @@ function addTransaction(e) {
     e.preventDefault();
 
     const productIndex = document.getElementById('transaction-product').value;
-    const quantity = document.getElementById('transaction-quantity').value;
+    const quantity = parseInt(document.getElementById('transaction-quantity').value);
 
-    const product = products[productIndex];
-    const newTransaction = { productIndex, quantity: parseInt(quantity) };
+    const newTransaction = { productIndex, quantity };
     transactions.push(newTransaction);
     localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
 
@@ -184,10 +249,9 @@ function generateReport(e) {
 
     const reportType = document.getElementById('report-type').value;
     const reportOutput = document.getElementById('report-output');
-    
+
     let filteredTransactions;
 
-    // Filter based on report type
     const today = new Date();
     if (reportType === 'daily') {
         filteredTransactions = transactions.filter(transaction => {
@@ -206,7 +270,6 @@ function generateReport(e) {
         });
     }
 
-    // Calculate totals
     const totalRevenue = filteredTransactions.reduce((total, transaction) => {
         const product = products[transaction.productIndex];
         return total + (product.price * transaction.quantity);
@@ -222,82 +285,3 @@ function generateReport(e) {
         </ul>
     `;
 }
-
-// Load Users Section (User Management)
-function loadUsers() {
-    content.innerHTML = `
-        <h3>Manage Users</h3>
-        <form id="user-form">
-            <div class="form-group">
-                <label for="user-name">Name</label>
-                <input type="text" id="user-name" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="user-email">Email</label>
-                <input type="email" id="user-email" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="user-password">Password</label>
-                <input type="password" id="user-password" class="form-control" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Add User</button>
-        </form>
-        <h4>User List</h4>
-        <ul id="user-list" class="list-group mt-3"></ul>
-    `;
-
-    displayUsers();
-
-    document.getElementById('user-form').addEventListener('submit', addUser);
-}
-
-// Display Users
-function displayUsers() {
-    const userList = document.getElementById('user-list');
-    userList.innerHTML = '';
-
-    users.forEach((user, index) => {
-        userList.innerHTML += `
-            <li class="list-group-item">
-                ${user.name} - ${user.email}
-                <button class="btn btn-danger btn-sm float-right" onclick="deleteUser(${index})">Delete</button>
-            </li>
-        `;
-    });
-}
-
-
-[
-    {
-        "name": "Admin User",
-        "email": "admin@example.com",
-        "password": "admin123"
-    }
-]
-
-
-// Add User
-function addUser(e) {
-    e.preventDefault();
-
-    const name = document.getElementById('user-name').value;
-    const email = document.getElementById('user-email').value;
-    const password = document.getElementById('user-password').value;
-
-    const newUser = { name, email, password };
-    users.push(newUser);
-    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-
-    displayUsers();
-    e.target.reset();
-}
-
-// Delete User
-function deleteUser(index) {
-    users.splice(index, 1);
-    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-    displayUsers();
-}
-
-// Initialize App
-init();
