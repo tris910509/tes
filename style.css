@@ -1,11 +1,13 @@
 body {
-  font-family: Arial, sans-serif;
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
 }
 
-.table th, .table td {
-  text-align: center;
+.nav-link.active {
+    background-color: #007bff;
+    color: white;
 }
 
-.btn {
-  margin: 5px;
+.container {
+    max-width: 800px;
 }
