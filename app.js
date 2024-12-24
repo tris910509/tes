@@ -24,6 +24,7 @@ function init() {
 
 // Load Users Section
 function loadUsers() {
+    const content = document.getElementById('content');
     content.innerHTML = `
         <h3>Manage Users</h3>
         <form id="user-form">
@@ -41,7 +42,7 @@ function loadUsers() {
             </div>
             <div class="form-group">
                 <label for="user-role">Role</label>
-                <select id="user-role" class="form-control">
+                <select id="user-role" class="form-control" required>
                     <option value="admin">Admin</option>
                     <option value="user">User</option>
                 </select>
@@ -76,17 +77,19 @@ function displayUsers() {
 function addUser(e) {
     e.preventDefault();
 
-    const name = document.getElementById('user-name').value;
-    const email = document.getElementById('user-email').value;
-    const password = document.getElementById('user-password').value;
-    const role = document.getElementById('user-role').value;
+    const name = document.getElementById('user-name').value.trim();
+    const email = document.getElementById('user-email').value.trim();
+    const password = document.getElementById('user-password').value.trim();
+    const role = document.getElementById('user-role').value.trim();
 
-    const newUser = { id: Date.now(), name, email, password, role };
-    users.push(newUser);
-    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+    if (name && email && password) {
+        const newUser = { id: Date.now(), name, email, password, role };
+        users.push(newUser);
+        localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
 
-    displayUsers();
-    e.target.reset();
+        displayUsers();
+        e.target.reset();
+    }
 }
 
 // Delete User
@@ -98,6 +101,7 @@ function deleteUser(index) {
 
 // Load Products Section
 function loadProducts() {
+    const content = document.getElementById('content');
     content.innerHTML = `
         <h3>Manage Products</h3>
         <form id="product-form">
@@ -139,15 +143,17 @@ function displayProducts() {
 function addProduct(e) {
     e.preventDefault();
 
-    const name = document.getElementById('product-name').value;
+    const name = document.getElementById('product-name').value.trim();
     const price = parseFloat(document.getElementById('product-price').value);
 
-    const newProduct = { id: Date.now(), name, price };
-    products.push(newProduct);
-    localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+    if (name && !isNaN(price)) {
+        const newProduct = { id: Date.now(), name, price };
+        products.push(newProduct);
+        localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
 
-    displayProducts();
-    e.target.reset();
+        displayProducts();
+        e.target.reset();
+    }
 }
 
 // Delete Product
@@ -159,6 +165,7 @@ function deleteProduct(index) {
 
 // Load Transactions Section
 function loadTransactions() {
+    const content = document.getElementById('content');
     content.innerHTML = `
         <h3>Manage Transactions</h3>
         <form id="transaction-form">
@@ -204,15 +211,17 @@ function displayTransactions() {
 function addTransaction(e) {
     e.preventDefault();
 
-    const productIndex = document.getElementById('transaction-product').value;
+    const productIndex = parseInt(document.getElementById('transaction-product').value);
     const quantity = parseInt(document.getElementById('transaction-quantity').value);
 
-    const newTransaction = { productIndex, quantity };
-    transactions.push(newTransaction);
-    localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
+    if (productIndex !== -1 && quantity > 0) {
+        const newTransaction = { productIndex, quantity, timestamp: new Date() };
+        transactions.push(newTransaction);
+        localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
 
-    displayTransactions();
-    e.target.reset();
+        displayTransactions();
+        e.target.reset();
+    }
 }
 
 // Delete Transaction
@@ -224,6 +233,7 @@ function deleteTransaction(index) {
 
 // Load Reports Section
 function loadReports() {
+    const content = document.getElementById('content');
     content.innerHTML = `
         <h3>Reports</h3>
         <form id="report-form">
@@ -255,17 +265,19 @@ function generateReport(e) {
     const today = new Date();
     if (reportType === 'daily') {
         filteredTransactions = transactions.filter(transaction => {
-            const date = new Date();
-            return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+            const date = new Date(transaction.timestamp);
+            return date.getDate() === today.getDate() &&
+                   date.getMonth() === today.getMonth() &&
+                   date.getFullYear() === today.getFullYear();
         });
     } else if (reportType === 'monthly') {
         filteredTransactions = transactions.filter(transaction => {
-            const date = new Date();
+            const date = new Date(transaction.timestamp);
             return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
         });
     } else if (reportType === 'annual') {
         filteredTransactions = transactions.filter(transaction => {
-            const date = new Date();
+            const date = new Date(transaction.timestamp);
             return date.getFullYear() === today.getFullYear();
         });
     }
